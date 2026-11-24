@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Guías PDF con inventos, experimentos y manualidades para hacer en familia.">
+<title>Taller Curioso · Guías digitales para hacer en casa</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/catalogo.js" defer></script>
+</head>
+<body>
+<header class="top"><div class="wrap nav">
+<a class="brand" href="#" aria-label="Taller Curioso, inicio"><span class="symbol" aria-hidden="true">✳</span>Taller<span>Curioso</span></a>
+<nav aria-label="Navegación principal"><a href="/">Mindtrix</a><a href="#catalogo">Catálogo</a><a href="#preguntas">Preguntas frecuentes</a></nav>
+<a class="nav-action" href="/">Mindtrix</a>
+</div></header>
+<main>
+<section class="hero"><div class="wrap hero-grid">
+<div class="intro"><p class="eyebrow"><span></span> GUÍAS DIGITALES PARA HACER EN CASA</p>
+<h1>Las ideas se<br>hacen <em>con las manos.</em></h1>
+<p class="lede">Inventos, experimentos y manualidades para compartir en familia. Elegí una guía, prepará los materiales y empezá a crear.</p>
+<a class="button" href="#catalogo">Explorar el catálogo</a>
+</div>
+<div class="showcase" aria-label="Portadas de Robótica Casera y Ciencia y arte en casa" role="img">
+<span class="spark one" aria-hidden="true">✦</span><span class="spark two" aria-hidden="true">✦</span><span class="spark three" aria-hidden="true">✧</span>
+<img class="book first" src="/robotica.jpg" alt=""><img class="book second" src="/ciencia.jpg" alt="">
+<span class="sticker" aria-hidden="true">PDF</span>
+</div>
+</div></section>
+<section id="catalogo" class="wrap catalog">
+<p class="eyebrow"><span></span> CATÁLOGO DIGITAL</p><h2>Elegí tu próximo proyecto</h2>
+<p class="section-copy">Guías con materiales, instrucciones paso a paso y actividades para hacer juntos.</p>
+<div class="filters" role="group" aria-label="Filtrar por tema">
+<button type="button" data-filter="todos" aria-pressed="true">Todas las guías</button><button type="button" data-filter="robotica" aria-pressed="false">Robótica</button><button type="button" data-filter="ciencia" aria-pressed="false">Ciencia</button><button type="button" data-filter="arte" aria-pressed="false">Arte</button>
+</div>
+<div class="cards" id="productos" aria-live="polite"></div>
+<noscript>Activá JavaScript para explorar los kits.</noscript>
+</section>
+<section id="preguntas" class="faq"><div class="wrap faq-grid">
+<div><p class="eyebrow"><span></span> ANTES DE ELEGIR</p><h2>Preguntas frecuentes</h2></div>
+<div>
+<details><summary>¿Qué incluye cada kit?</summary><p>Un archivo PDF con actividades, listas de materiales e instrucciones. Las herramientas y los materiales se consiguen por separado.</p></details>
+<details><summary>¿Puedo imprimir las guías?</summary><p>Sí. Podés leer el PDF desde una pantalla o imprimir las páginas que necesites.</p></details>
+<details><summary>¿Qué actividades requieren ayuda de un adulto?</summary><p>Las guías indican qué pasos realiza o supervisa un adulto. Revisá las indicaciones y los materiales antes de empezar un proyecto.</p></details>
+<details><summary>¿Cómo compro una guía?</summary><p>Por ahora podés explorar el catálogo y ver las portadas. Las compras se habilitarán cuando estén disponibles los precios y el medio de pago.</p></details>
+</div></div></section>
+</main>
+<footer><div class="wrap footer"><a class="brand" href="#"><span class="symbol" aria-hidden="true">✳</span>Taller<span>Curioso</span></a><a href="/">Volver a Mindtrix</a></div></footer>
+<dialog id="ficha" aria-labelledby="titulo-ficha"><div class="dialog-inner">
+<form method="dialog"><button class="close" aria-label="Cerrar ficha">×</button></form>
+<img id="portada" alt="">
+<div><p class="eyebrow" id="detalle"></p><h2 id="titulo-ficha"></h2><p id="descripcion"></p>
+<h3>Actividades incluidas</h3><ul id="actividades"></ul>
+<p id="estado"></p><a hidden class="button" id="pagar">Comprar PDF</a></div>
+</div></dialog>
+</body></html>
