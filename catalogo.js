@@ -8,7 +8,7 @@ const catalogo = [
     paginas: 11,
     descripcion: 'Construí mecanismos con cartón, palitos, hilos y componentes simples.',
     actividades: ['Puente levadizo hidráulico', 'Rueda de luz', 'Mini cortadora de papel', 'Mano robótica'],
-    precio: null,
+    precio: 900,
     compra: null
   },
   {
@@ -20,7 +20,7 @@ const catalogo = [
     paginas: 9,
     descripcion: 'Probá experimentos y manualidades con materiales cotidianos de casa.',
     actividades: ['Volcán en erupción', 'Arcoíris caminante', 'Lámpara de lava casera', 'El huevo que flota', 'Teléfono de vasos', 'Pintura mágica con sal'],
-    precio: null,
+    precio: 900,
     compra: null
   }
 ];
@@ -28,7 +28,7 @@ const catalogo = [
 const productos = document.querySelector('#productos');
 const ficha = document.querySelector('#ficha');
 const pagar = document.querySelector('#pagar');
-const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 function mostrarFicha(kit) {
   const portada = document.querySelector('#portada');
@@ -46,7 +46,7 @@ function mostrarFicha(kit) {
   pagar.hidden = !disponible;
   if (disponible) pagar.href = kit.compra;
   else pagar.removeAttribute('href');
-  document.querySelector('#estado').textContent = disponible ? pesos.format(kit.precio) + ' ARS' : 'Compra aún no habilitada.';
+  document.querySelector('#estado').textContent = pesos.format(kit.precio) + ' ARS' + (disponible ? '' : ' · Compra aún no habilitada.');
   ficha.showModal();
 }
 
@@ -61,7 +61,7 @@ function mostrarProductos(filtro) {
         <p class="edition">${kit.parte}</p>
         <h3>${kit.titulo}</h3>
         <p>${kit.descripcion}</p>
-        <div class="card-end"><span>PDF · ${kit.actividades.length} actividades</span><button type="button" aria-label="Ver el kit ${kit.titulo}">Ver kit</button></div>
+        <div class="card-end"><span>PDF · ${kit.actividades.length} actividades · <strong>${pesos.format(kit.precio)} ARS</strong></span><button type="button" aria-label="Ver el kit ${kit.titulo}">Ver kit</button></div>
       </div>`;
     card.querySelector('button').addEventListener('click', () => mostrarFicha(kit));
     return card;
