@@ -66,6 +66,17 @@ portada = f"""
 </div></section>
 <section class="mx-wrap mx-rubros" id="rubros"><h2>Explorá por rubro</h2>
 <div class="mx-list">{''.join(map(tarjeta, RUBROS))}</div></section>
+<section class="mx-wrap mx-rubros" id="packs" aria-labelledby="titulo-packs">
+<h2 id="titulo-packs">Packs educativos</h2>
+<p class="section-copy">Próximamente · $4.500 ARS por pack</p>
+<div class="mx-list">
+<article class="mx-category"><h3>Guía de Robótica</h3><p>+190 proyectos prácticos.</p></article>
+<article class="mx-category"><h3>Kit de Estimulación Inteligente</h3><p>+500 actividades y manualidades.</p></article>
+<article class="mx-category"><h3>Más de 100 Experimentos Científicos para Niños</h3><p>Experimentos para explorar ciencia en casa.</p></article>
+<article class="mx-category"><h3>Kit de Gimnasia Cerebral e Inteligencia Emocional</h3><p>Ejercicios de atención y concentración.</p></article>
+<article class="mx-category"><h3>Curso Completo de Inglés para Niños</h3><p>Vocabulario, dinámicas lúdicas y fichas ilustradas.</p></article>
+<article class="mx-category"><h3>Mega Pack de Plantillas Imprimibles</h3><p>Paper Toys 3D, recortables y tableros de seguimiento de logros.</p></article>
+</div></section>
 """
 
 FICHA = """<dialog id="ficha" aria-labelledby="titulo-ficha"><div class="dialog-inner">
