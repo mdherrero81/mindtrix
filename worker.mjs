@@ -31,12 +31,19 @@ async function checkout(request, env, url) {
   const seleccion = [...ids].sort().map(id => productos.get(id));
   const total = seleccion.reduce((suma, producto) => suma + producto.price, 0);
   const volver = new URL('/carrito/?regreso=1', url.origin).href;
+  const token = env.MP_TEST_ACCESS_TOKEN.trim();
+  if (!/^[!-~]+$/.test(token)) {
+    return respuesta({ error: 'Revisá el secreto de prueba en Cloudflare. El valor está vacío o contiene espacios internos.' }, 503);
+  }
+
+  let resultado;
   try {
-    const resultado = await fetch(ordersApi, {
+    resultado = await fetch(ordersApi, {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       headers: {
-        Authorization: 'Bearer ' + env.MP_TEST_ACCESS_TOKEN,
+        Authorization: 'Bearer ' + token,
+        Accept: 'application/json',
         'Content-Type': 'application/json',
         'X-Idempotency-Key': clave,
       },
@@ -49,21 +56,30 @@ async function checkout(request, env, url) {
         config: { online: { success_url: volver, failure_url: volver, pending_url: volver, auto_return: 'all' } },
       }),
     });
-    if (!resultado.ok) {
-      return respuesta({ error: 'Mercado Pago no pudo crear el pedido de prueba. Revisá los registros en Tus integraciones.' }, 502);
-    }
-    const orden = await resultado.json();
-    const destino = new URL(orden.checkout_url);
-    if (!/^ORDTST[A-Z0-9]+$/.test(orden.id) || orden.currency !== 'ARS' ||
-        Number(orden.total_amount) !== total || destino.origin !== mercadoPago ||
-        destino.pathname !== '/checkout/v1/redirect' ||
-        destino.searchParams.get('order_id') !== orden.id) {
-      return respuesta({ error: 'Mercado Pago no devolvió una orden de prueba válida por el total del carrito.' }, 502);
-    }
-    return respuesta({ url: destino.href });
-  } catch {
-    return respuesta({ error: 'No pudimos comunicarnos con Mercado Pago. Volvé a intentar.' }, 502);
+  } catch (error) {
+    console.error('Checkout de prueba: falló el pedido a Mercado Pago.', error.name);
+    return respuesta({ error: 'Cloudflare no recibió respuesta de Mercado Pago (MP_CONEXION).' }, 502);
   }
+  if (!resultado.ok) {
+    console.warn('Checkout de prueba: Mercado Pago devolvió HTTP', resultado.status);
+    return respuesta({ error: 'Mercado Pago rechazó el pedido de prueba (HTTP ' + resultado.status +
+      '). Revisá Tus integraciones → API Requests.' }, 502);
+  }
+
+  const orden = await resultado.json().catch(() => null);
+  let destino;
+  try {
+    destino = new URL(orden?.checkout_url);
+  } catch {
+    return respuesta({ error: 'Mercado Pago respondió, pero faltó un enlace válido de checkout (MP_ENLACE).' }, 502);
+  }
+  if (!/^ORDTST[A-Z0-9]+$/.test(orden.id) || orden.currency !== 'ARS' ||
+      Number(orden.total_amount) !== total || destino.origin !== mercadoPago ||
+      destino.pathname !== '/checkout/v1/redirect' ||
+      destino.searchParams.get('order_id') !== orden.id) {
+    return respuesta({ error: 'Mercado Pago no devolvió una orden de prueba válida por el total del carrito (MP_ORDEN).' }, 502);
+  }
+  return respuesta({ url: destino.href });
 }
 
 export default {
