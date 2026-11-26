@@ -47,6 +47,18 @@ function mostrarFicha(kit) {
   if (disponible) pagar.href = kit.compra;
   else pagar.removeAttribute('href');
   document.querySelector('#estado').textContent = pesos.format(kit.precio) + ' ARS' + (disponible ? '' : ' · Compra aún no habilitada.');
+  if (document.querySelector('[data-carrito-contador]')) {
+    let agregar = ficha.querySelector('[data-agregar-carrito]');
+    if (!agregar) {
+      agregar = document.createElement('button');
+      agregar.type = 'button';
+      agregar.className = 'button';
+      agregar.textContent = 'Agregar al carrito';
+      pagar.after(agregar);
+    }
+    agregar.dataset.agregarCarrito = kit.id;
+    document.querySelector('#estado').textContent = pesos.format(kit.precio) + ' ARS';
+  }
   ficha.showModal();
 }
 
