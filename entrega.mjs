@@ -3,7 +3,7 @@ const archivos = new Map([
   ['ciencia', 'ciencia-y-arte-en-casa.pdf'],
 ]);
 
-const sieteDias = 7 * 24 * 60 * 60;
+const dosDias = 2 * 24 * 60 * 60;
 const ahora = () => Math.floor(Date.now() / 1000);
 
 export function entregaConfigurada(env) {
@@ -28,7 +28,7 @@ export async function habilitarDescargas(env, id, referencia, ids) {
   `).bind(id, referencia, productos, crypto.randomUUID(), ahora()).first();
 
   if (!fila) throw new Error('El pedido almacenado no coincide con la orden acreditada');
-  const vence = fila.aprobado_en + sieteDias;
+  const vence = fila.aprobado_en + dosDias;
   return {
     vence,
     enlaces: ahora() >= vence ? [] : ids.map(producto => ({
@@ -45,7 +45,7 @@ export async function descargar(request, env, url) {
   const [, token, producto] = match;
   const fila = await env.ENTREGAS.prepare('SELECT productos, aprobado_en FROM entregas WHERE token = ?')
     .bind(token).first();
-  if (!fila?.aprobado_en || ahora() - fila.aprobado_en >= sieteDias ||
+  if (!fila?.aprobado_en || ahora() - fila.aprobado_en >= dosDias ||
       !archivos.has(producto) || !JSON.parse(fila.productos).includes(producto)) {
     return new Response('Enlace no disponible o vencido', { status: 404, headers });
   }
