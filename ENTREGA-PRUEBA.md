@@ -6,3 +6,5 @@
 4. Iniciá una compra simulada, volvé al carrito y comprobá que aparezca el botón de descarga cuando Mercado Pago acredite el pedido.
 
 Mindtrix verifica el pedido con la API de Mercado Pago. Los enlaces vencen siete días después de la primera confirmación en la tienda. El navegador conserva las descargas del último pedido. Un comprador puede guardar sus enlaces antes de cerrar la pestaña.
+
+Antes de pagar, la página **Mi compra** permite copiar el enlace privado. Para probar la recuperación, abrí ese enlace en otra ventana sin el almacenamiento del carrito y verificá que muestre el estado y las descargas autorizadas.
