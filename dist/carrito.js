@@ -1,4 +1,6 @@
 (() => {
+  const prueba = document.documentElement.dataset.pagos !== 'produccion';
+  const patronOrden = prueba ? /^ORDTST[A-Z0-9]{1,64}$/ : /^ORD(?!TST)[A-Z0-9]{1,64}$/;
   const claveCarrito = 'mindtrix.carrito.v1';
   const clavePedido = 'mindtrix.pedido-prueba.v1';
   const claveUltimoPedido = 'mindtrix.ultimo-pedido-prueba.v1';
@@ -23,6 +25,7 @@
   const lista = document.querySelector('#carrito-productos');
   const total = document.querySelector('#carrito-total');
   const pagar = document.querySelector('#carrito-pagar');
+  if (pagar && prueba) pagar.textContent = 'Probar pago con Mercado Pago';
   const estado = document.querySelector('#carrito-estado');
   const esMiCompra = Boolean(document.querySelector('#mi-compra'));
   const copiar = document.querySelector('#copiar-compra');
@@ -144,7 +147,7 @@
     if (window.location.hash) {
       const id = fragmento.get('id');
       const referencia = fragmento.get('referencia');
-      const enlaceValido = /^ORDTST[A-Z0-9]{1,64}$/.test(id) && /^[a-f0-9-]{36}$/i.test(referencia);
+      const enlaceValido = patronOrden.test(id) && /^[a-f0-9-]{36}$/i.test(referencia);
       pedido = enlaceValido ? (mismoPedido(pedido, { id, referencia }) ? pedido : { id, referencia }) : null;
     } else {
       pedido ??= leerPedido(claveUltimoPedido);
@@ -174,7 +177,7 @@
   if (!pedido && regreso) {
     const id = retorno.get('order_id');
     const referencia = retorno.get('external_reference');
-    if (/^ORDTST[A-Z0-9]{1,64}$/.test(id) && /^[a-f0-9-]{36}$/i.test(referencia)) {
+    if (patronOrden.test(id) && /^[a-f0-9-]{36}$/i.test(referencia)) {
       pedido = { id, referencia };
     }
   }
@@ -224,8 +227,8 @@
         pedido = null;
         if (regreso) history.replaceState(null, '', window.location.pathname);
         estado.textContent = datos.descarga.enlaces.length
-          ? 'Pago de prueba aprobado. Tus guías están listas para descargar.'
-          : 'Pago de prueba aprobado. El plazo de descarga ya venció.';
+          ? 'Pago aprobado. Tus guías están listas para descargar.'
+          : 'Pago aprobado. El plazo de descarga ya venció.';
       } else if (datos.estado === 'cerrado') {
         if (mismoPedido(leerPedido(clavePedido), pedido)) localStorage.removeItem(clavePedido);
         pedido = null;
@@ -274,7 +277,7 @@
       }
       estado.textContent = regreso
         ? 'Esta compra no tiene un pedido guardado en el navegador. Revisá el resultado en Mercado Pago.'
-        : habilitado ? 'Compra de prueba en pesos argentinos.' : 'El pago de prueba está pendiente de configurar.';
+        : habilitado ? (prueba ? 'Compra de prueba en pesos argentinos.' : 'Compra en pesos argentinos.') : 'El pago con Mercado Pago todavía no está habilitado.';
       actualizar();
     })
     .catch(() => {
@@ -285,7 +288,7 @@
   pagar?.addEventListener('click', async () => {
     if (pagar.disabled) return;
     enviando = true;
-    estado.textContent = 'Preparando el pedido de prueba…';
+    estado.textContent = 'Preparando el pedido…';
     actualizar();
     try {
       intento ??= crypto.randomUUID();
@@ -296,7 +299,7 @@
       });
       const datos = await response.json();
       if (!response.ok) {
-        estado.textContent = datos.error || 'El pedido de prueba no pudo iniciarse.';
+        estado.textContent = datos.error || 'El pedido no pudo iniciarse.';
         return;
       }
       const nuevoPedido = { id: datos.id, referencia: intento, productos: [...carrito], url: datos.url };
