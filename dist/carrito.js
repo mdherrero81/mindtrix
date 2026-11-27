@@ -22,6 +22,9 @@
   const total = document.querySelector('#carrito-total');
   const pagar = document.querySelector('#carrito-pagar');
   const estado = document.querySelector('#carrito-estado');
+  const correo = document.querySelector('#carrito-correo');
+  const datosEntrega = document.querySelector('#carrito-entrega');
+  let conEntrega = false;
   let habilitado = false;
   let enviando = false;
   let intento;
@@ -52,6 +55,7 @@
       lista.append(item);
     }
     total.textContent = carrito.size ? 'Total · ' + pesos.format(importe) + ' ARS' : 'Tu carrito está vacío.';
+    if (correo) correo.disabled = enviando || Boolean(pedido);
     pagar.disabled = !habilitado || !carrito.size || enviando || Boolean(pedido);
   }
 
@@ -82,6 +86,7 @@
 
   actualizar();
   if (!pagar) return;
+  correo?.addEventListener('input', () => { intento = undefined; });
   const retorno = new URLSearchParams(window.location.search);
   const regreso = retorno.has('regreso');
   if (!pedido && regreso) {
@@ -154,7 +159,10 @@
   consultar.addEventListener('click', verificar);
   fetch('/api/checkout', { cache: 'no-store' })
     .then(async response => {
-      habilitado = response.ok && (await response.json()).habilitado === true;
+      const config = response.ok ? await response.json() : {};
+      habilitado = config.habilitado === true;
+      conEntrega = config.entrega === true;
+      if (datosEntrega) datosEntrega.hidden = !conEntrega;
       if (pedido) return verificar();
       estado.textContent = regreso
         ? 'Esta compra no tiene un pedido guardado en el navegador. Revisá el resultado en Mercado Pago.'
@@ -167,7 +175,7 @@
     });
 
   pagar.addEventListener('click', async () => {
-    if (pagar.disabled) return;
+    if (pagar.disabled || (conEntrega && !correo.reportValidity())) return;
     enviando = true;
     estado.textContent = 'Preparando el pedido de prueba…';
     actualizar();
@@ -176,7 +184,7 @@
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': intento },
-        body: JSON.stringify({ productos: [...carrito] }),
+        body: JSON.stringify({ productos: [...carrito], correo: conEntrega ? correo.value.trim() : undefined }),
       });
       const datos = await response.json();
       if (!response.ok) {
