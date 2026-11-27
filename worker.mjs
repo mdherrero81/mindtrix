@@ -93,17 +93,30 @@ async function verificarPedido(request, env, url) {
   const token = env.MP_TEST_ACCESS_TOKEN?.trim();
   if (!token || !/^[!-~]+$/.test(token)) return respuesta({ error: 'El pago de prueba está pendiente de configurar.' }, 503);
 
-  let orden;
+  let resultado;
   try {
-    const resultado = await fetch(ordersApi + '/' + id, {
-      redirect: 'error', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    resultado = await fetch(ordersApi + '/' + id, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     });
-    if (resultado.ok) orden = await resultado.json();
-  } catch {
-    return respuesta({ error: 'No pudimos consultar el pedido en Mercado Pago.' }, 502);
+  } catch (error) {
+    console.error('Consulta de orden de prueba: falló la conexión.', error.name);
+    return respuesta({ error: 'Cloudflare no recibió respuesta al consultar el pedido (MP_ESTADO_CONEXION).' }, 502);
   }
-  if (!orden || orden.id !== id || orden.external_reference !== referencia || orden.currency !== 'ARS') {
-    return respuesta({ error: 'No pudimos verificar el pedido con Mercado Pago.' }, 502);
+
+  if (!resultado.ok) {
+    console.warn('Consulta de orden de prueba: Mercado Pago devolvió HTTP', resultado.status);
+    return respuesta({ error: 'Mercado Pago respondió HTTP ' + resultado.status +
+      ' al consultar el pedido (MP_ESTADO_HTTP).' }, 502);
+  }
+
+  const orden = await resultado.json().catch(() => null);
+  if (!orden) {
+    return respuesta({ error: 'Mercado Pago respondió en un formato inesperado (MP_ESTADO_FORMATO).' }, 502);
+  }
+  if (orden.id !== id || orden.external_reference !== referencia || orden.currency !== 'ARS') {
+    return respuesta({ error: 'La respuesta de Mercado Pago no coincide con este pedido (MP_ESTADO_PEDIDO).' }, 502);
   }
 
   if (orden.status === 'processed' && orden.status_detail === 'accredited') {
