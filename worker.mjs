@@ -179,7 +179,7 @@ export default {
         element.prepend('<script defer src="/carrito.js"></script>', { html: true });
       } })
       .on('header .mx-top, header .nav', { element(element) {
-        element.append('<a class="mx-collection" href="/carrito/" data-carrito-contador>Carrito</a>', { html: true });
+        element.append('<a class="mx-collection" href="/carrito/" data-carrito-contador>Carrito</a><a class="mx-collection" href="/mi-compra/">Mi compra</a>', { html: true });
       } })
       .transform(pagina);
   },
