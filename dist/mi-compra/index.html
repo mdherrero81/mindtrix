@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Mi compra · Mindtrix</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/mindtrix.css">
+</head>
+<body class="mindtrix">
+<header class="mx-header">
+  <div class="mx-wrap mx-top"><a class="mx-brand" href="/"><span aria-hidden="true">✳</span>mindtrix</a></div>
+</header>
+<main class="mx-wrap mx-rubros" id="mi-compra">
+  <h1>Mi compra</h1>
+  <p hidden>
+    <label for="enlace-compra">Enlace privado de tu pedido</label><br>
+    <input id="enlace-compra" type="url" readonly>
+    <button type="button" class="mx-collection" id="copiar-compra">Copiar enlace</button><br>
+    Guardalo para consultar o descargar desde otro dispositivo. Compartilo solo con quien deba tener acceso.
+    <span id="estado-copia" role="status"></span>
+  </p>
+  <p id="carrito-estado" role="status">Cargando el pedido…</p>
+  <p><a id="retomar-compra" class="button" hidden>Ir a Mercado Pago</a></p>
+  <section id="carrito-descargas" aria-labelledby="titulo-descargas" hidden>
+    <h2 id="titulo-descargas">Tus descargas</h2>
+    <ul id="carrito-enlaces"></ul>
+    <p>Los enlaces vencen 7 días después de que Mindtrix confirme el pago.</p>
+  </section>
+  <p><a class="mx-collection" href="/carrito/">Volver al carrito</a></p>
+  <noscript><p>Activá JavaScript para consultar el pedido.</p></noscript>
+</main>
+</body>
+</html>
