@@ -10,14 +10,33 @@ const respuesta = (data, status = 200) => Response.json(data, {
   status, headers: { 'Cache-Control': 'no-store' },
 });
 
+function esProduccion(env) {
+  return env.MINDTRIX_PAYMENT_MODE === 'production';
+}
+
+function tokenDePago(env) {
+  return (esProduccion(env) ? env.MP_ACCESS_TOKEN : env.MP_TEST_ACCESS_TOKEN)?.trim();
+}
+
+function identificadorValido(id, env) {
+  if (typeof id !== 'string') return false;
+  return esProduccion(env) ? /^ORD(?!TST)[A-Z0-9]{1,64}$/.test(id) : /^ORDTST[A-Z0-9]{1,64}$/.test(id);
+}
+
+function origenPermitido(url, env) {
+  return !esProduccion(env) || url.origin === 'https://mindtrix.store';
+}
+
 async function checkout(request, env, url) {
-  const habilitado = Boolean(env.MP_TEST_ACCESS_TOKEN && entregaConfigurada(env));
+  const token = tokenDePago(env);
+  const habilitado = Boolean(token && /^[!-~]+$/.test(token) && entregaConfigurada(env) &&
+    origenPermitido(url, env) && (!esProduccion(env) || env.MINDTRIX_LIVE_CHECKOUT === 'true'));
   if (request.method === 'GET') return respuesta({ habilitado, entrega: entregaConfigurada(env) });
   if (request.method !== 'POST') return respuesta({ error: 'Método no disponible.' }, 405);
-  if (request.headers.get('Origin') !== url.origin) {
+  if (request.headers.get('Origin') !== url.origin || !origenPermitido(url, env)) {
     return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
   }
-  if (!habilitado) return respuesta({ error: 'El checkout de prueba está pendiente de configurar.' }, 503);
+  if (!habilitado) return respuesta({ error: 'El pago con Mercado Pago todavía no está habilitado.' }, 503);
 
   const clave = request.headers.get('Idempotency-Key');
   if (!clave || !/^[a-f0-9-]{36}$/i.test(clave)) {
@@ -37,10 +56,6 @@ async function checkout(request, env, url) {
   const seleccion = [...ids].sort().map(id => productos.get(id));
   const total = seleccion.reduce((suma, producto) => suma + producto.price, 0);
   const volver = new URL('/carrito/?regreso=1', url.origin).href;
-  const token = env.MP_TEST_ACCESS_TOKEN.trim();
-  if (!/^[!-~]+$/.test(token)) {
-    return respuesta({ error: 'Revisá el secreto de prueba en Cloudflare. El valor está vacío o contiene espacios internos.' }, 503);
-  }
 
   let resultado;
   try {
@@ -63,12 +78,12 @@ async function checkout(request, env, url) {
       }),
     });
   } catch (error) {
-    console.error('Checkout de prueba: falló el pedido a Mercado Pago.', error.name);
+    console.error('Checkout: falló el pedido a Mercado Pago.', error.name);
     return respuesta({ error: 'Cloudflare no recibió respuesta de Mercado Pago (MP_CONEXION).' }, 502);
   }
   if (!resultado.ok) {
-    console.warn('Checkout de prueba: Mercado Pago devolvió HTTP', resultado.status);
-    return respuesta({ error: 'Mercado Pago rechazó el pedido de prueba (HTTP ' + resultado.status +
+    console.warn('Checkout: Mercado Pago devolvió HTTP', resultado.status);
+    return respuesta({ error: 'Mercado Pago rechazó el pedido (HTTP ' + resultado.status +
       '). Revisá Tus integraciones → API Requests.' }, 502);
   }
 
@@ -79,22 +94,22 @@ async function checkout(request, env, url) {
   } catch {
     return respuesta({ error: 'Mercado Pago respondió, pero faltó un enlace válido de checkout (MP_ENLACE).' }, 502);
   }
-  if (!/^ORDTST[A-Z0-9]+$/.test(orden.id) || orden.currency !== 'ARS' ||
+  if (!identificadorValido(orden.id, env) || orden.currency !== 'ARS' ||
       Number(orden.total_amount) !== total || destino.origin !== mercadoPago ||
       destino.pathname !== '/checkout/v1/redirect' ||
       destino.searchParams.get('order_id') !== orden.id) {
-    return respuesta({ error: 'Mercado Pago no devolvió una orden de prueba válida por el total del carrito (MP_ORDEN).' }, 502);
+    return respuesta({ error: 'Mercado Pago no devolvió una orden válida por el total del carrito (MP_ORDEN).' }, 502);
   }
   return respuesta({ url: destino.href, id: orden.id });
 }
 
 async function verificarPedido(request, env, url) {
   if (request.method !== 'POST') return respuesta({ error: 'Método no disponible.' }, 405);
-  if (request.headers.get('Origin') !== url.origin) return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
+  if (request.headers.get('Origin') !== url.origin || !origenPermitido(url, env)) return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
 
   const { id, referencia } = await request.json().catch(() => null) || {};
-  if (!/^ORDTST[A-Z0-9]{1,64}$/.test(id) || !/^[a-f0-9-]{36}$/i.test(referencia)) {
-    return respuesta({ error: 'No se pudo identificar el pedido de prueba.' }, 400);
+  if (!identificadorValido(id, env) || !/^[a-f0-9-]{36}$/i.test(referencia)) {
+    return respuesta({ error: 'No se pudo identificar el pedido.' }, 400);
   }
   if (!entregaConfigurada(env)) return respuesta({ error: 'La descarga está pendiente de configurar.' }, 503);
   const estado = await consultarEstado(id, referencia, env);
@@ -109,8 +124,8 @@ async function verificarPedido(request, env, url) {
 }
 
 async function consultarEstado(id, referencia, env) {
-  const token = env.MP_TEST_ACCESS_TOKEN?.trim();
-  if (!token || !/^[!-~]+$/.test(token)) return respuesta({ error: 'El pago de prueba está pendiente de configurar.' }, 503);
+  const token = tokenDePago(env);
+  if (!token || !/^[!-~]+$/.test(token)) return respuesta({ error: 'El pago está pendiente de configurar.' }, 503);
 
   let resultado;
   try {
@@ -121,12 +136,12 @@ async function consultarEstado(id, referencia, env) {
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     });
   } catch (error) {
-    console.error('Consulta de orden de prueba: falló la conexión.', error.name);
+    console.error('Consulta de orden: falló la conexión.', error.name);
     return respuesta({ error: 'Cloudflare no recibió respuesta al consultar el pedido (MP_ESTADO_CONEXION).' }, 502);
   }
 
   if (!resultado.ok) {
-    console.warn('Consulta de orden de prueba: Mercado Pago devolvió HTTP', resultado.status);
+    console.warn('Consulta de orden: Mercado Pago devolvió HTTP', resultado.status);
     return respuesta({ error: 'Mercado Pago respondió HTTP ' + resultado.status +
       ' al consultar el pedido (MP_ESTADO_HTTP).' }, 502);
   }
@@ -166,7 +181,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/checkout') return checkout(request, env, url);
     if (url.pathname === '/api/checkout/estado') return verificarPedido(request, env, url);
-    if (url.pathname.startsWith('/descarga/')) return descargar(request, env, url);
+    if (url.pathname.startsWith('/descarga/') && origenPermitido(url, env)) return descargar(request, env, url);
     const asset = await env.ASSETS.fetch(request);
     if (!asset.ok || request.method !== 'GET' || !asset.headers.get('Content-Type')?.startsWith('text/html')) {
       return asset;
@@ -175,6 +190,9 @@ export default {
     const pagina = new Response(asset.body, asset);
     pagina.headers.set('Referrer-Policy', 'no-referrer');
     return new HTMLRewriter()
+      .on('html', { element(element) {
+        if (esProduccion(env)) element.setAttribute('data-pagos', 'produccion');
+      } })
       .on('head', { element(element) {
         element.prepend('<script defer src="/carrito.js"></script>', { html: true });
       } })
