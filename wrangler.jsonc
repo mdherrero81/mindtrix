@@ -1,11 +1,14 @@
 {
-  "name": "mindtrix-prueba",
-  "workers_dev": true,
+  "name": "mindtrix",
   "main": "worker.mjs",
   "compatibility_date": "2026-11-26",
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "run_worker_first": true
+  },
+  "keep_vars": true,
+  "vars": {
+    "MINDTRIX_PAYMENT_MODE": "production"
   }
 }
