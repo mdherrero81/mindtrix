@@ -70,3 +70,8 @@ dialog::backdrop{background:#231a11a8}
 @media(max-width:760px){.wrap{width:calc(100% - 34px)}.hero-grid{grid-template-columns:1fr;gap:26px;padding-block:36px}.showcase{max-width:530px;width:100%;margin:auto}.nav{min-height:62px}nav{display:none}.catalog,.faq{padding-block:42px}.faq-grid{grid-template-columns:1fr;gap:18px}.card-art{height:200px}.card-art img{max-height:155px}}
 @media(max-width:520px){.cards,.dialog-inner{grid-template-columns:1fr}.card-body{padding:18px}.dialog-inner img{width:min(180px,70%);margin:auto}.nav-action{padding:9px 13px}.lede{font-size:1rem}.card-art{height:220px}.card-art img{max-height:178px}h1{font-size:clamp(2.65rem,10vw,3.35rem)}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+#enlace-compra { width: min(100%, 32rem); margin: .4rem 0; }
+@media (max-width: 520px) {
+  header .mx-top, header .nav { flex-wrap: wrap; gap: .5rem; padding-block: .65rem; }
+}
