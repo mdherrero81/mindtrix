@@ -15,12 +15,13 @@
   <h1>Tu carrito</h1>
   <ul id="carrito-productos"></ul>
   <p id="carrito-total"></p>
-  <p id="carrito-entrega" hidden>
-    <label for="carrito-correo">Correo para recibir las guías</label><br>
-    <input id="carrito-correo" type="email" autocomplete="email" maxlength="254" required>
-  </p>
   <button type="button" class="button" id="carrito-pagar" disabled>Probar pago con Mercado Pago</button>
   <p id="carrito-estado" role="status"></p>
+  <section id="carrito-descargas" aria-labelledby="titulo-descargas" hidden>
+    <h2 id="titulo-descargas">Tus descargas</h2>
+    <ul id="carrito-enlaces"></ul>
+    <p>Conservá estos enlaces. Podés usarlos durante 7 días desde la confirmación en Mindtrix.</p>
+  </section>
   <a class="mx-collection" href="/taller-curioso/">Ver guías</a>
   <noscript><p>Activá JavaScript para usar el carrito.</p></noscript>
 </main>
