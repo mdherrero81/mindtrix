@@ -1,5 +1,6 @@
 (() => {
   const claveCarrito = 'mindtrix.carrito.v1';
+  const clavePedido = 'mindtrix.pedido-prueba.v1';
   const productos = new Map([
     ['robotica', { titulo: 'Robótica Casera', precio: 900 }],
     ['ciencia', { titulo: 'Ciencia y arte en casa', precio: 900 }],
@@ -24,6 +25,10 @@
   let habilitado = false;
   let enviando = false;
   let intento;
+  let pedido;
+  if (pagar) {
+    try { pedido = JSON.parse(localStorage.getItem(clavePedido)); } catch { pedido = null; }
+  }
 
   function actualizar() {
     contadores.forEach(enlace => {
@@ -47,7 +52,7 @@
       lista.append(item);
     }
     total.textContent = carrito.size ? 'Total · ' + pesos.format(importe) + ' ARS' : 'Tu carrito está vacío.';
-    pagar.disabled = !habilitado || !carrito.size || enviando;
+    pagar.disabled = !habilitado || !carrito.size || enviando || Boolean(pedido);
   }
 
   function guardar() {
@@ -77,16 +82,89 @@
 
   actualizar();
   if (!pagar) return;
-  const regreso = new URLSearchParams(window.location.search).has('regreso');
+  const retorno = new URLSearchParams(window.location.search);
+  const regreso = retorno.has('regreso');
+  if (!pedido && regreso) {
+    const id = retorno.get('order_id');
+    const referencia = retorno.get('external_reference');
+    if (/^ORDTST[A-Z0-9]{1,64}$/.test(id) && /^[a-f0-9-]{36}$/i.test(referencia)) {
+      pedido = { id, referencia };
+    }
+  }
+  const consultar = document.createElement('button');
+  consultar.type = 'button';
+  consultar.className = 'mx-collection';
+  consultar.textContent = 'Verificar pago';
+  consultar.hidden = true;
+  estado.after(consultar);
+
+  async function verificar() {
+    if (!pedido || enviando) return;
+    enviando = true;
+    consultar.disabled = true;
+    estado.textContent = 'Verificando el pago en Mercado Pago…';
+    actualizar();
+    try {
+      const respuesta = await fetch('/api/checkout/estado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pedido.id, referencia: pedido.referencia }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos.error || 'No pudimos verificar el pago.');
+      if (datos.estado === 'aprobado') {
+        const ids = datos.productos;
+        if (pedido.productos && (ids.length !== pedido.productos.length || ids.some(id => !pedido.productos.includes(id)))) {
+          throw new Error('El pedido aprobado no coincide con la selección guardada.');
+        }
+        const carActual = leerCarrito();
+        ids.forEach(id => carActual.delete(id));
+        localStorage.setItem(claveCarrito, JSON.stringify([...carActual]));
+        carrito.clear();
+        carActual.forEach(id => carrito.add(id));
+        localStorage.removeItem(clavePedido);
+        pedido = null;
+        if (regreso) history.replaceState(null, '', window.location.pathname);
+        estado.textContent = 'Pago de prueba aprobado. Quitamos las guías pagadas del carrito.';
+      } else if (datos.estado === 'cerrado') {
+        localStorage.removeItem(clavePedido);
+        pedido = null;
+        intento = undefined;
+        if (regreso) history.replaceState(null, '', window.location.pathname);
+        estado.textContent = 'El pedido anterior terminó sin un pago acreditado. Podés volver a intentar.';
+      } else {
+        estado.textContent = 'Mercado Pago todavía no confirma el pago. Tu carrito sigue guardado.';
+        if (datos.estado === 'iniciado' && pedido.url) {
+          const enlace = document.createElement('a');
+          enlace.href = pedido.url;
+          enlace.textContent = ' Retomar el pago de prueba';
+          estado.append(enlace);
+        }
+      }
+    } catch (error) {
+      estado.textContent = error.message;
+    } finally {
+      enviando = false;
+      consultar.disabled = false;
+      consultar.hidden = !pedido;
+      actualizar();
+    }
+  }
+
+  consultar.addEventListener('click', verificar);
   fetch('/api/checkout', { cache: 'no-store' })
     .then(async response => {
       habilitado = response.ok && (await response.json()).habilitado === true;
+      if (pedido) return verificar();
       estado.textContent = regreso
-        ? 'Volviste de Mercado Pago. Consultá el resultado en Mercado Pago.'
+        ? 'Esta compra no tiene un pedido guardado en el navegador. Revisá el resultado en Mercado Pago.'
         : habilitado ? 'Compra de prueba en pesos argentinos.' : 'El pago de prueba está pendiente de configurar.';
       actualizar();
     })
-    .catch(() => { estado.textContent = 'No pudimos comprobar si el pago está disponible.'; });
+    .catch(() => {
+      consultar.hidden = !pedido;
+      estado.textContent = 'No pudimos comprobar si el pago está disponible.';
+    });
 
   pagar.addEventListener('click', async () => {
     if (pagar.disabled) return;
@@ -105,6 +183,9 @@
         estado.textContent = datos.error || 'El pedido de prueba no pudo iniciarse.';
         return;
       }
+      const nuevoPedido = { id: datos.id, referencia: intento, productos: [...carrito], url: datos.url };
+      localStorage.setItem(clavePedido, JSON.stringify(nuevoPedido));
+      pedido = nuevoPedido;
       window.location.assign(datos.url);
     } catch {
       estado.textContent = 'No pudimos abrir el pago. Volvé a intentar.';
