@@ -28,6 +28,10 @@ export async function habilitarDescargas(env, id, referencia, ids) {
   `).bind(id, referencia, productos, crypto.randomUUID(), ahora()).first();
 
   if (!fila) throw new Error('El pedido almacenado no coincide con la orden acreditada');
+  return enlacesDeDescarga(fila, ids);
+}
+
+export function enlacesDeDescarga(fila, ids) {
   const vence = fila.aprobado_en + dosDias;
   return {
     vence,

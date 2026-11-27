@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi cuenta · Mindtrix</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/mindtrix.css">
+  <script defer src="/cuenta.js"></script>
+</head>
+<body class="mindtrix">
+<header class="mx-header">
+  <div class="mx-wrap mx-top"><a class="mx-brand" href="/"><span aria-hidden="true">✳</span>mindtrix</a></div>
+</header>
+<main class="mx-wrap mx-rubros">
+  <h1>Mi cuenta</h1>
+  <p id="cuenta-estado" role="status"></p>
+  <section id="cuenta-acceso" hidden>
+    <p>Entrá para guardar tus próximas compras y encontrar tus descargas.</p>
+    <a class="button" href="/auth/google">Continuar con Google</a>
+  </section>
+  <section id="cuenta-pedidos" aria-labelledby="cuenta-pedidos-titulo" hidden>
+    <h2 id="cuenta-pedidos-titulo">Mis compras</h2>
+    <ul id="cuenta-lista"></ul>
+    <form action="/auth/salir" method="post"><button class="mx-collection" type="submit">Cerrar sesión</button></form>
+  </section>
+  <p><a href="/mi-compra/">Recuperar una compra como invitado</a></p>
+  <noscript><p>Activá JavaScript para consultar tu cuenta.</p></noscript>
+</main>
+</body>
+</html>

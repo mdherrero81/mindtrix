@@ -1,3 +1,4 @@
+import { clienteActivo, cuentaConfigurada, guardarPedidoCliente, rutaCuenta } from './cuenta.mjs';
 import { descargar, entregaConfigurada, guiasDisponibles, habilitarDescargas } from './entrega.mjs';
 
 const productos = new Map([
@@ -57,6 +58,15 @@ async function checkout(request, env, url) {
   const total = seleccion.reduce((suma, producto) => suma + producto.price, 0);
   const volver = new URL('/carrito/?regreso=1', url.origin).href;
 
+  let cliente;
+  if (cuentaConfigurada(env, url)) {
+    try {
+      cliente = await clienteActivo(request, env);
+    } catch {
+      return respuesta({ error: 'No pudimos consultar tu sesión. Volvé a intentar.' }, 503);
+    }
+  }
+
   let resultado;
   try {
     resultado = await fetch(ordersApi, {
@@ -100,6 +110,13 @@ async function checkout(request, env, url) {
       destino.searchParams.get('order_id') !== orden.id) {
     return respuesta({ error: 'Mercado Pago no devolvió una orden válida por el total del carrito (MP_ORDEN).' }, 502);
   }
+  if (cliente) {
+    try {
+      await guardarPedidoCliente(env, cliente, orden.id, clave);
+    } catch {
+      return respuesta({ error: 'No pudimos guardar el pedido en tu cuenta. Volvé a intentar desde el carrito.' }, 503);
+    }
+  }
   return respuesta({ url: destino.href, id: orden.id });
 }
 
@@ -108,7 +125,11 @@ async function verificarPedido(request, env, url) {
   if (request.headers.get('Origin') !== url.origin || !origenPermitido(url, env)) return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
 
   const { id, referencia } = await request.json().catch(() => null) || {};
-  if (!identificadorValido(id, env) || !/^[a-f0-9-]{36}$/i.test(referencia)) {
+  return estadoConDescarga(id, referencia, env);
+}
+
+async function estadoConDescarga(id, referencia, env) {
+  if (!identificadorValido(id, env) || typeof referencia !== 'string' || !/^[a-f0-9-]{36}$/i.test(referencia)) {
     return respuesta({ error: 'No se pudo identificar el pedido.' }, 400);
   }
   if (!entregaConfigurada(env)) return respuesta({ error: 'La descarga está pendiente de configurar.' }, 503);
@@ -179,6 +200,9 @@ async function consultarEstado(id, referencia, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/cuenta') || url.pathname.startsWith('/auth/')) {
+      return rutaCuenta(request, env, url, estadoConDescarga);
+    }
     if (url.pathname === '/api/checkout') return checkout(request, env, url);
     if (url.pathname === '/api/checkout/estado') return verificarPedido(request, env, url);
     if (url.pathname.startsWith('/descarga/') && origenPermitido(url, env)) return descargar(request, env, url);
@@ -198,6 +222,9 @@ export default {
       } })
       .on('header .mx-top, header .nav', { element(element) {
         element.append('<a class="mx-collection" href="/carrito/" data-carrito-contador>Carrito</a><a class="mx-collection" href="/mi-compra/">Mi compra</a>', { html: true });
+        if (cuentaConfigurada(env, url)) {
+          element.append('<a class="mx-collection" href="/cuenta/">Mi cuenta</a>', { html: true });
+        }
       } })
       .transform(pagina);
   },

@@ -6,6 +6,7 @@
   <title>Carrito · Mindtrix</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/mindtrix.css">
+  <script defer src="/cuenta.js"></script>
 </head>
 <body class="mindtrix">
 <header class="mx-header">
@@ -15,6 +16,10 @@
   <h1>Tu carrito</h1>
   <ul id="carrito-productos"></ul>
   <p id="carrito-total"></p>
+  <div id="carrito-cuenta" hidden>
+    <p data-cuenta-carrito>Podés iniciar sesión para guardar la compra en tu cuenta o pagar como invitado.</p>
+    <a class="mx-collection" href="/auth/google?volver=carrito">Continuar con Google</a>
+  </div>
   <button type="button" class="button" id="carrito-pagar" disabled>Pagar con Mercado Pago</button>
   <p id="carrito-estado" role="status"></p>
   <section id="carrito-descargas" aria-labelledby="titulo-descargas" hidden>
