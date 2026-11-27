@@ -1,3 +1,5 @@
+import { descargar, entregaConfigurada, guardarPedido, webhook } from './entrega.mjs';
+
 const productos = new Map([
   ['robotica', { title: 'Robótica Casera', price: 900 }],
   ['ciencia', { title: 'Ciencia y arte en casa', price: 900 }],
@@ -10,7 +12,7 @@ const respuesta = (data, status = 200) => Response.json(data, {
 
 async function checkout(request, env, url) {
   const habilitado = Boolean(env.MP_TEST_ACCESS_TOKEN);
-  if (request.method === 'GET') return respuesta({ habilitado });
+  if (request.method === 'GET') return respuesta({ habilitado, entrega: entregaConfigurada(env) });
   if (request.method !== 'POST') return respuesta({ error: 'Método no disponible.' }, 405);
   if (request.headers.get('Origin') !== url.origin) {
     return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
@@ -23,6 +25,11 @@ async function checkout(request, env, url) {
   }
   const datos = await request.json().catch(() => null);
   const ids = datos?.productos;
+  const correo = typeof datos?.correo === 'string' ? datos.correo.trim() : '';
+  const conEntrega = entregaConfigurada(env);
+  if (conEntrega && (correo.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo))) {
+    return respuesta({ error: 'Ingresá un correo válido para recibir las guías.' }, 400);
+  }
   if (!Array.isArray(ids) || ids.length < 1 || ids.length > productos.size ||
       new Set(ids).size !== ids.length || ids.some(id => !productos.has(id))) {
     return respuesta({ error: 'Revisá los productos del carrito.' }, 400);
@@ -79,6 +86,13 @@ async function checkout(request, env, url) {
       destino.searchParams.get('order_id') !== orden.id) {
     return respuesta({ error: 'Mercado Pago no devolvió una orden de prueba válida por el total del carrito (MP_ORDEN).' }, 502);
   }
+  try {
+    if (conEntrega && !await guardarPedido(env, orden.id, clave, correo, ids)) {
+      return respuesta({ error: 'El pedido ya está asociado a otros datos de entrega.' }, 409);
+    }
+  } catch {
+    return respuesta({ error: 'No pudimos guardar los datos de entrega. Volvé a intentar.' }, 503);
+  }
   return respuesta({ url: destino.href, id: orden.id });
 }
 
@@ -90,6 +104,10 @@ async function verificarPedido(request, env, url) {
   if (!/^ORDTST[A-Z0-9]{1,64}$/.test(id) || !/^[a-f0-9-]{36}$/i.test(referencia)) {
     return respuesta({ error: 'No se pudo identificar el pedido de prueba.' }, 400);
   }
+  return consultarEstado(id, referencia, env);
+}
+
+async function consultarEstado(id, referencia, env) {
   const token = env.MP_TEST_ACCESS_TOKEN?.trim();
   if (!token || !/^[!-~]+$/.test(token)) return respuesta({ error: 'El pago de prueba está pendiente de configurar.' }, 503);
 
@@ -98,6 +116,7 @@ async function verificarPedido(request, env, url) {
     resultado = await fetch(ordersApi + '/' + id, {
       method: 'GET',
       redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     });
   } catch (error) {
@@ -146,6 +165,15 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/checkout') return checkout(request, env, url);
     if (url.pathname === '/api/checkout/estado') return verificarPedido(request, env, url);
+    if (url.pathname === '/webhooks/mercado-pago') {
+      return webhook(request, env, url, async (id, referencia) => {
+        const respuesta = await consultarEstado(id, referencia, env);
+        if (!respuesta.ok) throw new Error('No se pudo confirmar la orden en Mercado Pago');
+        const datos = await respuesta.json();
+        return datos.estado === 'aprobado' ? datos.productos : null;
+      });
+    }
+    if (url.pathname.startsWith('/descarga/')) return descargar(request, env, url);
     const asset = await env.ASSETS.fetch(request);
     if (!asset.ok || request.method !== 'GET' || !asset.headers.get('Content-Type')?.startsWith('text/html')) {
       return asset;
