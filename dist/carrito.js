@@ -1,6 +1,7 @@
 (() => {
   const claveCarrito = 'mindtrix.carrito.v1';
   const clavePedido = 'mindtrix.pedido-prueba.v1';
+  const claveDescarga = 'mindtrix.descarga-prueba.v1';
   const productos = new Map([
     ['robotica', { titulo: 'Robótica Casera', precio: 900 }],
     ['ciencia', { titulo: 'Ciencia y arte en casa', precio: 900 }],
@@ -22,9 +23,8 @@
   const total = document.querySelector('#carrito-total');
   const pagar = document.querySelector('#carrito-pagar');
   const estado = document.querySelector('#carrito-estado');
-  const correo = document.querySelector('#carrito-correo');
-  const datosEntrega = document.querySelector('#carrito-entrega');
-  let conEntrega = false;
+  const descargas = document.querySelector('#carrito-descargas');
+  const enlaces = document.querySelector('#carrito-enlaces');
   let habilitado = false;
   let enviando = false;
   let intento;
@@ -55,7 +55,6 @@
       lista.append(item);
     }
     total.textContent = carrito.size ? 'Total · ' + pesos.format(importe) + ' ARS' : 'Tu carrito está vacío.';
-    if (correo) correo.disabled = enviando || Boolean(pedido);
     pagar.disabled = !habilitado || !carrito.size || enviando || Boolean(pedido);
   }
 
@@ -86,7 +85,28 @@
 
   actualizar();
   if (!pagar) return;
-  correo?.addEventListener('input', () => { intento = undefined; });
+  function mostrarDescargas(datos) {
+    if (typeof datos?.vence !== 'number' || datos.vence <= Date.now() / 1000 || !Array.isArray(datos.enlaces)) return;
+    enlaces.replaceChildren();
+    for (const { producto, url } of datos.enlaces) {
+      if (!productos.has(producto) || !/^\/descarga\/[a-f0-9-]{36}\/[a-z]+$/.test(url) ||
+          !url.endsWith('/' + producto)) continue;
+      const item = document.createElement('li');
+      const boton = document.createElement('a');
+      boton.className = 'button';
+      boton.href = url;
+      boton.textContent = 'Descargar PDF · ' + productos.get(producto).titulo;
+      item.append(boton);
+      enlaces.append(item);
+    }
+    descargas.hidden = !enlaces.childElementCount;
+  }
+
+  try {
+    mostrarDescargas(JSON.parse(localStorage.getItem(claveDescarga)));
+  } catch {
+    // El carrito puede seguir usándose si el navegador no guarda la descarga.
+  }
   const retorno = new URLSearchParams(window.location.search);
   const regreso = retorno.has('regreso');
   if (!pedido && regreso) {
@@ -127,10 +147,16 @@
         localStorage.setItem(claveCarrito, JSON.stringify([...carActual]));
         carrito.clear();
         carActual.forEach(id => carrito.add(id));
+        if (datos.descarga.enlaces.length) {
+          localStorage.setItem(claveDescarga, JSON.stringify(datos.descarga));
+          mostrarDescargas(datos.descarga);
+        }
         localStorage.removeItem(clavePedido);
         pedido = null;
         if (regreso) history.replaceState(null, '', window.location.pathname);
-        estado.textContent = 'Pago de prueba aprobado. Quitamos las guías pagadas del carrito.';
+        estado.textContent = datos.descarga.enlaces.length
+          ? 'Pago de prueba aprobado. Tus guías están listas para descargar.'
+          : 'Pago de prueba aprobado. El plazo de descarga ya venció.';
       } else if (datos.estado === 'cerrado') {
         localStorage.removeItem(clavePedido);
         pedido = null;
@@ -161,8 +187,6 @@
     .then(async response => {
       const config = response.ok ? await response.json() : {};
       habilitado = config.habilitado === true;
-      conEntrega = config.entrega === true;
-      if (datosEntrega) datosEntrega.hidden = !conEntrega;
       if (pedido) return verificar();
       estado.textContent = regreso
         ? 'Esta compra no tiene un pedido guardado en el navegador. Revisá el resultado en Mercado Pago.'
@@ -175,7 +199,7 @@
     });
 
   pagar.addEventListener('click', async () => {
-    if (pagar.disabled || (conEntrega && !correo.reportValidity())) return;
+    if (pagar.disabled) return;
     enviando = true;
     estado.textContent = 'Preparando el pedido de prueba…';
     actualizar();
@@ -184,7 +208,7 @@
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': intento },
-        body: JSON.stringify({ productos: [...carrito], correo: conEntrega ? correo.value.trim() : undefined }),
+        body: JSON.stringify({ productos: [...carrito] }),
       });
       const datos = await response.json();
       if (!response.ok) {
