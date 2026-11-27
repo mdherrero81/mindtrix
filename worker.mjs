@@ -79,13 +79,60 @@ async function checkout(request, env, url) {
       destino.searchParams.get('order_id') !== orden.id) {
     return respuesta({ error: 'Mercado Pago no devolvió una orden de prueba válida por el total del carrito (MP_ORDEN).' }, 502);
   }
-  return respuesta({ url: destino.href });
+  return respuesta({ url: destino.href, id: orden.id });
+}
+
+async function verificarPedido(request, env, url) {
+  if (request.method !== 'POST') return respuesta({ error: 'Método no disponible.' }, 405);
+  if (request.headers.get('Origin') !== url.origin) return respuesta({ error: 'Abrí el carrito desde Mindtrix.' }, 403);
+
+  const { id, referencia } = await request.json().catch(() => null) || {};
+  if (!/^ORDTST[A-Z0-9]{1,64}$/.test(id) || !/^[a-f0-9-]{36}$/i.test(referencia)) {
+    return respuesta({ error: 'No se pudo identificar el pedido de prueba.' }, 400);
+  }
+  const token = env.MP_TEST_ACCESS_TOKEN?.trim();
+  if (!token || !/^[!-~]+$/.test(token)) return respuesta({ error: 'El pago de prueba está pendiente de configurar.' }, 503);
+
+  let orden;
+  try {
+    const resultado = await fetch(ordersApi + '/' + id, {
+      redirect: 'error', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    });
+    if (resultado.ok) orden = await resultado.json();
+  } catch {
+    return respuesta({ error: 'No pudimos consultar el pedido en Mercado Pago.' }, 502);
+  }
+  if (!orden || orden.id !== id || orden.external_reference !== referencia || orden.currency !== 'ARS') {
+    return respuesta({ error: 'No pudimos verificar el pedido con Mercado Pago.' }, 502);
+  }
+
+  if (orden.status === 'processed' && orden.status_detail === 'accredited') {
+    const ids = [];
+    for (const item of orden.items || []) {
+      const producto = [...productos].find(([, datos]) =>
+        datos.title === item.title && datos.price === Number(item.unit_price));
+      if (!producto || Number(item.quantity) !== 1 || ids.includes(producto[0])) {
+        return respuesta({ error: 'La orden aprobada no coincide con el catálogo.' }, 502);
+      }
+      ids.push(producto[0]);
+    }
+    const total = ids.reduce((suma, id) => suma + productos.get(id).price, 0);
+    if (!total || Number(orden.total_amount) !== total || Number(orden.total_paid_amount) !== total) {
+      return respuesta({ error: 'No pudimos verificar el importe pagado.' }, 502);
+    }
+    return respuesta({ estado: 'aprobado', productos: ids });
+  }
+  if (['canceled', 'failed', 'expired', 'refunded'].includes(orden.status)) {
+    return respuesta({ estado: 'cerrado' });
+  }
+  return respuesta({ estado: orden.status === 'created' ? 'iniciado' : 'pendiente' });
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/checkout') return checkout(request, env, url);
+    if (url.pathname === '/api/checkout/estado') return verificarPedido(request, env, url);
     const asset = await env.ASSETS.fetch(request);
     if (!asset.ok || request.method !== 'GET' || !asset.headers.get('Content-Type')?.startsWith('text/html')) {
       return asset;
